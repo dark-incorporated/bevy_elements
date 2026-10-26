@@ -173,6 +173,7 @@ fn main() {
             mesh,
         })
         .add_systems(Startup, (setup, lay_paths))
+        .add_systems(Update, mark_paths.after(ElementsSystems::Readback))
         .add_systems(
             Update,
             (settle_weather, walk, drive).after(ElementsSystems::Readback),
@@ -457,4 +458,73 @@ fn lay_paths(mut commands: Commands) {
     if !paths.is_empty() {
         commands.insert_resource(PathNetwork::new(paths));
     }
+    if std::env::var("ELEMENTS_PATHS_MARK").is_ok() {
+        commands.insert_resource(PathMarks { placed: false });
+    }
+}
+
+/// `ELEMENTS_PATHS_MARK=1`: a ring of small posts placed by the crate's own query. Each stands
+/// exactly 2 m clear of the nearest route's **edge**, `nearest_path`'s distance, so a capture shows
+/// whether the query agrees with the drawn verge (`docs/research/path-query.md` Validation 7).
+#[derive(Resource)]
+struct PathMarks {
+    placed: bool,
+}
+
+fn mark_paths(
+    mut commands: Commands,
+    env: Environment,
+    paths: Option<Res<PathNetwork>>,
+    marks: Option<ResMut<PathMarks>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    let (Some(_), Some(mut marks)) = (paths, marks) else {
+        return;
+    };
+    if marks.placed {
+        return;
+    }
+    let Some(ground) = env.terrain_height(Vec2::ZERO) else {
+        return;
+    };
+    let post = meshes.add(Cuboid::new(0.16, 2.2, 0.16));
+    let white = materials.add(StandardMaterial {
+        base_color: Color::srgb(0.92, 0.92, 0.95),
+        perceptual_roughness: 0.7,
+        ..default()
+    });
+    // A grid of posts across the example's ground: each snaps to 2 m outside the nearest route's
+    // edge, so a ring of them traces every verge at a constant offset.
+    let mut placed = 0;
+    for iz in -30..=30 {
+        for ix in -30..=30 {
+            let xz = Vec2::new(ix as f32, iz as f32) * 2.0;
+            let Some(hit) = env.nearest_path(xz) else {
+                continue;
+            };
+            // 2 m outside the edge, along the direction from the route to the point.
+            let away = (xz - hit.point).normalize_or_zero();
+            if away == Vec2::ZERO {
+                continue;
+            }
+            let target = hit.point + away * (hit.surface.half_width_m + 2.0);
+            // Only a sparse ring: every 5th point in each direction.
+            if (ix % 5 != 0) || (iz % 5 != 0) {
+                continue;
+            }
+            let Some(ground) = env.terrain_height(target) else {
+                continue;
+            };
+            commands.spawn((
+                Mesh3d(post.clone()),
+                MeshMaterial3d(white.clone()),
+                Transform::from_xyz(target.x, ground + 1.1, target.y),
+            ));
+            placed += 1;
+        }
+    }
+    let _ = ground;
+    eprintln!("path marks: {placed} posts placed by nearest_path");
+    marks.placed = true;
 }

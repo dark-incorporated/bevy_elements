@@ -204,17 +204,34 @@ pub(crate) struct PathMask {
     pub texels_data: Vec<[f32; 4]>,
 }
 
-/// The CPU mirror of the shader's field maths: test-only, so the crate's own build carries no
-/// second copy of the formula.
+/// The coverage a route's distance draws, which the shader and [`Environment::surface_at`] both
+/// use so the picture and the query cannot disagree: 1 well inside the route, 0 outside its edge,
+/// a smoothstep over the fade **inward from the edge**. The signed distance is negative inside, so
+/// the coverage grows as the distance falls below zero: `smoothstep(0, -fade, distance)`.
+///
+/// [`Environment::surface_at`]: crate::Environment::surface_at
+pub(crate) fn coverage(distance_m: f32, fade_m: f32) -> f32 {
+    smoothstep(0.0, -fade_m.max(1e-3), distance_m)
+}
+
+/// How deep in a wheel line a point lies, 0-1, from its lateral offset as a fraction of the
+/// route's half width: the shader's Gaussian about each wheel line (`PATH_RUT_OFFSET`,
+/// `PATH_RUT_SIGMA` of `paths.wesl`, the same constants).
+pub(crate) fn rut_at(lateral_fraction: f32) -> f32 {
+    /// Where the wheels run, as a fraction of the half width (a cart's 1.5 m track on a 1 m half
+    /// width); the `trails` example's `ELEMENTS_PATHS=track`.
+    pub(crate) const RUT_OFFSET: f32 = 0.6;
+    /// The band's width, in the same units.
+    pub(crate) const RUT_SIGMA: f32 = 0.10;
+    let wheel = (lateral_fraction.abs() - RUT_OFFSET) / RUT_SIGMA;
+    if wheel.abs() > 2.5 {
+        return 0.0;
+    }
+    (-0.5 * wheel * wheel).exp()
+}
+
 #[cfg(test)]
 impl PathMask {
-    /// The coverage the shader draws: 1 well inside the route, 0 outside its edge, a smoothstep
-    /// over the fade **inward from the edge**. The mask's distance is negative inside, so the
-    /// coverage grows as the distance falls below zero: `smoothstep(0, -fade, distance)`.
-    pub(crate) fn coverage(distance_m: f32, fade_m: f32) -> f32 {
-        smoothstep(0.0, -fade_m.max(1e-3), distance_m)
-    }
-
     /// A kind lane's integer part (the kind) and its fraction (the rut depth, m).
     pub(crate) fn kind_and_depth(packed: f32) -> (f32, f32) {
         let kind = packed.floor();
@@ -321,6 +338,103 @@ fn route_distance(points: &[Vec3], p: Vec2, half_width: f32) -> (f32, f32) {
     (best - half_width, lateral)
 }
 
+/// What the ground under a point is, on or near a route ([`Environment::surface_at`],
+/// [`Environment::nearest_path`](crate::Environment::nearest_path)).
+///
+/// The classification a game maps to its own responses — footstep and tyre sounds, movement speed,
+/// dust, a print's depth — as shipping engines do with *collision materials* or Unreal's *physical
+/// materials* (Gregory 2018; `docs/research/path-query.md`). The crate supplies the surface and the
+/// geometry; the assets are the game's.
+///
+/// [`Environment::surface_at`]: crate::Environment::surface_at
+#[derive(Clone, Copy, Debug, PartialEq, Reflect)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct PathSurface {
+    /// The nearest route's surface.
+    pub kind: PathKind,
+    /// 1 well inside the route, 0 outside its edge, the shader's own smoothstep over the fade, so
+    /// a query at a verge answers what the picture shows there.
+    pub coverage: f32,
+    /// The route's own half width, m.
+    pub half_width_m: f32,
+    /// The route's rut depth, m (0 without ruts).
+    pub rut_depth_m: f32,
+    /// How deep in a wheel line the point lies, 0-1: the shader's Gaussian about the wheel lines
+    /// at 0.6 of the half width, so a footstep in a rut can be answered as one.
+    pub rut: f32,
+}
+
+/// The nearest route to a point ([`Environment::nearest_path`](crate::Environment::nearest_path)).
+#[derive(Clone, Copy, Debug, PartialEq, Reflect)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct PathHit {
+    /// The surface at the point, against that route.
+    pub surface: PathSurface,
+    /// The signed distance from the point to the route's **edge**, m: negative inside the route,
+    /// positive outside it. Distance to the *edge*, not the centre line, so a game placing a prop
+    /// 3 m clear of a road measures what it means.
+    pub distance_m: f32,
+    /// The point of the route's centre line nearest the query, world XZ (the ground's height is
+    /// the terrain's; this is the route's own line).
+    pub point: Vec2,
+}
+
+/// The route nearest to `p` (metre-frame XZ), with the surface there, or `None` with no routes.
+///
+/// The same segment maths the rasteriser uses, so the mask and the answer cannot disagree, and the
+/// same coverage and rut curves. Exact and current: the network is the game's own CPU data.
+pub(crate) fn nearest(paths: &[Path], p: Vec2) -> Option<PathHit> {
+    let mut best: Option<(f32, &Path, Vec2, f32)> = None;
+    for path in paths.iter().filter(|p| p.points.len() >= 2) {
+        let (edge, point, lateral) = route_query(path, p);
+        if best.is_none_or(|(d, _, _, _)| edge < d) {
+            best = Some((edge, path, point, lateral));
+        }
+    }
+    let (edge, path, point, lateral) = best?;
+    let half = path.width();
+    Some(PathHit {
+        surface: PathSurface {
+            kind: path.kind,
+            coverage: coverage(edge, edge_fade_m(half)),
+            half_width_m: half,
+            rut_depth_m: path.depth(),
+            rut: rut_at(lateral),
+        },
+        distance_m: edge,
+        point,
+    })
+}
+
+/// The signed distance from `p` to `path`'s edge (negative inside), the nearest point of its centre
+/// line, and `p`'s lateral offset from that line as a fraction of the half width.
+fn route_query(path: &Path, p: Vec2) -> (f32, Vec2, f32) {
+    let half = path.width();
+    let mut best = f32::INFINITY;
+    let mut nearest_point = path.points[0].xz();
+    let mut lateral = 0.0;
+    for pair in path.points.windows(2) {
+        let (a, b) = (pair[0].xz(), pair[1].xz());
+        let ab = b - a;
+        let len2 = ab.length_squared();
+        let t = if len2 > 1e-12 {
+            ((p - a).dot(ab) / len2).clamp(0.0, 1.0)
+        } else {
+            0.0
+        };
+        let on = a + ab * t;
+        let d = p.distance(on);
+        if d < best {
+            best = d;
+            nearest_point = on;
+            // The segment's leftward normal, against the offset: positive to the route's left.
+            let n = Vec2::new(-ab.y, ab.x) / len2.sqrt().max(1e-12);
+            lateral = (p - on).dot(n) / half;
+        }
+    }
+    (best - half, nearest_point, lateral)
+}
+
 /// The mask as an `rgba16float` image, sampled linearly (the distance field must interpolate).
 pub(crate) fn mask_image(mask: &PathMask) -> Image {
     // `Rgba8Unorm`, the format the terrain's own ground-texture array uses (iteration 50) — the one
@@ -378,8 +492,7 @@ pub(crate) fn decode(texel: [u8; 4]) -> [f32; 4] {
     ]
 }
 
-/// GLSL/WGSL `smoothstep`, for the CPU mirror; test-only, like [`PathMask::coverage`].
-#[cfg(test)]
+/// GLSL/WGSL `smoothstep`, the curve [`coverage`] and the shader share.
 fn smoothstep(edge0: f32, edge1: f32, x: f32) -> f32 {
     if (edge1 - edge0).abs() < 1e-9 {
         return if x < edge0 { 0.0 } else { 1.0 };
@@ -458,6 +571,11 @@ fn rasterise_paths(
 mod tests {
     use super::*;
 
+    /// The same road, for the query tests in the parent module.
+    pub(super) fn road_public() -> Path {
+        road()
+    }
+
     /// A straight road along +X at z = 0: 5 m wide, gravel.
     fn road() -> Path {
         Path::new(
@@ -486,11 +604,12 @@ mod tests {
         out
     }
 
-    fn coverage(mask: &PathMask, p: Vec2) -> f32 {
+    /// The mask's coverage at `p`, through the crate's own curve.
+    fn masked_coverage(mask: &PathMask, p: Vec2) -> f32 {
         let s = sample(mask, p);
         // The fade is derived from the route's half width, as the shader derives it: the mask's
         // alpha carries the grain, not the fade.
-        PathMask::coverage(s[0], edge_fade_m(mask.half_width_m))
+        super::coverage(s[0], edge_fade_m(mask.half_width_m))
     }
 
     #[test]
@@ -515,7 +634,7 @@ mod tests {
     #[test]
     fn the_coverage_is_one_inside_and_zero_past_the_fade() {
         let mask = rasterise(&[road()], Vec2::splat(-32.0), 1.0, 64);
-        let c = |z: f32| coverage(&mask, Vec2::new(0.0, z));
+        let c = |z: f32| masked_coverage(&mask, Vec2::new(0.0, z));
         // A 5 m road: its edge is at z = 2.5 and the fade runs 0.825 m inward.
         assert_eq!(c(0.0), 1.0);
         assert_eq!(c(1.5), 1.0);
@@ -538,12 +657,12 @@ mod tests {
         );
         let mask = rasterise(&[diagonal], Vec2::splat(-32.0), 1.0, 64);
         let normal = Vec2::new(1.0, -1.0).normalize();
-        assert_eq!(coverage(&mask, Vec2::ZERO), 1.0);
+        assert_eq!(masked_coverage(&mask, Vec2::ZERO), 1.0);
         for off in [0.0, 1.5] {
-            assert!(coverage(&mask, normal * off) > 0.95, "at {off} m");
+            assert!(masked_coverage(&mask, normal * off) > 0.95, "at {off} m");
         }
         for off in [2.8, 4.0, 9.0] {
-            assert_eq!(coverage(&mask, normal * off), 0.0, "at {off} m");
+            assert_eq!(masked_coverage(&mask, normal * off), 0.0, "at {off} m");
         }
     }
 
@@ -596,7 +715,7 @@ mod tests {
         );
         let mask = rasterise(&[far], Vec2::splat(-32.0), 1.0, 64);
         assert!(mask.texels_data.iter().all(|t| t[0] == f32::INFINITY));
-        assert_eq!(coverage(&mask, Vec2::ZERO), 0.0);
+        assert_eq!(masked_coverage(&mask, Vec2::ZERO), 0.0);
     }
 
     #[test]
@@ -622,6 +741,60 @@ mod tests {
             assert!((got[2] - want[2]).abs() <= 0.05, "lateral {got:?} against {want:?}");
             assert!((got[3] - want[3]).abs() <= 1.0 / 255.0, "grain {got:?}");
         }
+    }
+
+    /// `docs/research/path-query.md` Validation 1: the query's coverage and rut are the shader's
+    /// own formulae on the same point, so the answer and the picture cannot drift.
+    #[test]
+    fn the_query_answers_the_shaders_own_curve() {
+        let road = super::tests::road_public();
+        // Across the road: for each offset, the query's coverage equals `coverage(edge, fade)`.
+        for z in [0.0f32, 1.0, 2.0, 2.5, 2.7, 3.2, 9.0] {
+            let hit = nearest(std::slice::from_ref(&road), Vec2::new(0.0, z)).expect("a route");
+            let want = coverage(hit.distance_m, edge_fade_m(hit.surface.half_width_m));
+            assert_eq!(hit.surface.coverage, want, "at z {z}");
+        }
+        // The rut is the shader's Gaussian about the wheel lines.
+        let track = Path::new(
+            vec![Vec3::new(-20.0, 0.0, 0.0), Vec3::new(20.0, 0.0, 0.0)],
+            1.0,
+            PathKind::Earth,
+        )
+        .with_ruts(0.06);
+        let at = |z: f32| nearest(std::slice::from_ref(&track), Vec2::new(0.0, z)).expect("a route");
+        let wheel = at(-0.6);
+        assert!((wheel.surface.rut - 1.0).abs() < 0.05, "{wheel:?}");
+        assert_eq!(at(0.0).surface.rut, 0.0, "the crown is no wheel line");
+        assert_eq!(wheel.surface.rut_depth_m, 0.06);
+    }
+
+    /// Validation 2 and 3: inside, edge and outside, and the nearest route's kind.
+    #[test]
+    fn the_query_finds_the_nearest_route_and_its_edge() {
+        let road = super::tests::road_public();
+        let hit = nearest(std::slice::from_ref(&road), Vec2::new(0.0, 0.0)).expect("a route");
+        assert_eq!(hit.surface.kind, PathKind::Gravel);
+        assert_eq!(hit.surface.half_width_m, 2.5);
+        assert_eq!(hit.surface.coverage, 1.0);
+        assert!((hit.distance_m + 2.5).abs() < 1e-5, "{} at the centre line", hit.distance_m);
+        assert_eq!(hit.point, Vec2::new(0.0, 0.0));
+        // 4 m from the centre line: 1.5 m outside the edge (Validation 4).
+        let off = nearest(std::slice::from_ref(&road), Vec2::new(3.0, 4.0)).expect("a route");
+        assert!((off.distance_m - 1.5).abs() < 1e-5, "{}", off.distance_m);
+        assert!((off.point - Vec2::new(3.0, 0.0)).length() < 1e-5);
+        // Past the fade: no coverage, but the route is still the nearest.
+        assert_eq!(off.surface.coverage, 0.0);
+        // Two crossing routes: the nearest one's kind wins.
+        let lane = Path::new(
+            vec![Vec3::new(0.0, 0.0, -20.0), Vec3::new(0.0, 0.0, 20.0)],
+            0.35,
+            PathKind::Earth,
+        );
+        let both = [road.clone(), lane];
+        assert_eq!(nearest(&both, Vec2::new(0.0, 12.0)).expect("a route").surface.kind, PathKind::Earth);
+        assert_eq!(nearest(&both, Vec2::new(12.0, 0.0)).expect("a route").surface.kind, PathKind::Gravel);
+        // No routes: nothing.
+        assert!(nearest(&[], Vec2::ZERO).is_none());
     }
 
     #[test]
