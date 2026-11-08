@@ -54,7 +54,8 @@ pub use celestial::{
 pub use climate::{
     Climate, ClimateHistory, ClimatePlugin, ClimateSummary, DayConditions, FREEZING_C,
     LAPSE_RATE_C_PER_M, Season, SeasonChanged, SeasonState, SnowSeason, SurfaceWeathering,
-    WET_DAY_MM, Weather, WeatherChanged, WeatherDirector, WeatherPreset,
+    WEATHER_OVERRIDE_BLEND_S, WET_DAY_MM, Weather, WeatherChanged, WeatherDirector,
+    WeatherOverrideSettings, WeatherPreset, apply_weather_override,
 };
 
 // Wind.
@@ -93,10 +94,9 @@ pub use lightning::{
 pub use terrain::{
     DEFAULT_SCULPT_HARDNESS, GroundExtension, GroundLayerTextures, GroundMaterial, GroundParams,
     ProceduralTerrain, RestoreTerrain, SculptKind, SculptTerrain, Terrain, TerrainEdit,
-    TerrainExtension,
-    TerrainExtensionKey, TerrainGrid, TerrainLook, TerrainMaterial, TerrainMaterialParams,
-    TerrainPlugin, TerrainRender, TerrainSnapshot, TerrainSource, TerrainState, TerrainTextures,
-    sculpt_weight,
+    TerrainExtension, TerrainExtensionKey, TerrainGrid, TerrainLook, TerrainMaterial,
+    TerrainMaterialParams, TerrainPlugin, TerrainRender, TerrainSnapshot, TerrainSource,
+    TerrainState, TerrainTextures, sculpt_weight,
 };
 
 // Aeolian transport.

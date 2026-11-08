@@ -42,7 +42,7 @@ impl Plugin for ElementsFloraPlugin {
         app.add_message::<WindGust>();
         app.add_systems(
             Update,
-            (drive_wind, drive_season, drive_ground).after(ElementsSystems::Readback),
+            (drive_wind, drive_season, drive_ground).in_set(ElementsSystems::Apply),
         );
     }
 }

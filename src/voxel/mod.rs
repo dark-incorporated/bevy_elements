@@ -63,6 +63,7 @@ use crate::terrain::TerrainPlugin;
 /// column top, or a tunnel's walls are shaded white wherever the map above them has snow: see
 /// [`GroundExtension::with_column_gate_m`](crate::GroundExtension::with_column_gate_m).
 #[derive(Component, Clone, Copy, Debug, PartialEq, Eq, Reflect)]
+#[reflect(Component)]
 pub struct VoxelGround {
     /// The terrain grid in cells (clamped to the quality level and rounded down to a power of
     /// two, 32 to [`ElementsQuality::terrain_max_resolution`](crate::ElementsQuality)). Choose
@@ -96,6 +97,7 @@ impl VoxelGround {
 /// tilted or unevenly scaled volume gets no snow (one warning). A volume with a `VoxelGround`
 /// too is a voxel ground. See `docs/research/voxel-volumes.md`.
 #[derive(Component, Clone, Copy, Debug, Default, PartialEq, Eq, Reflect)]
+#[reflect(Component)]
 pub struct VoxelSnow;
 
 /// The systems that scan, edit and swap the snow of [`VoxelGround`] and [`VoxelSnow`] volumes.
@@ -117,6 +119,8 @@ pub struct VoxelPlugin;
 
 impl Plugin for VoxelPlugin {
     fn build(&self, app: &mut App) {
+        app.register_type::<VoxelGround>();
+        app.register_type::<VoxelSnow>();
         configure_sets(app);
         if !(app.is_plugin_added::<TerrainPlugin>()
             && app.is_plugin_added::<HydrologyPlugin>()
@@ -137,7 +141,7 @@ fn configure_sets(app: &mut App) {
     app.configure_sets(
         Update,
         VoxelGroundSystems
-            .after(ElementsSystems::Readback)
+            .in_set(ElementsSystems::Apply)
             .before(IsomeshSystems),
     );
 }
@@ -160,7 +164,9 @@ fn add_systems(app: &mut App) {
     )
     .add_systems(
         Update,
-        voxel_ground_erosion_guard.before(ElementsSystems::Simulation),
+        // Before `Simulation` hands hydrology the erosion setting: `Weather` is its last earlier
+        // phase that has no other ties to this guard.
+        voxel_ground_erosion_guard.in_set(ElementsSystems::Weather),
     );
 }
 

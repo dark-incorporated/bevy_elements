@@ -33,6 +33,7 @@ use super::{
     BlockerGpu, DrawParams, PrecipParams, PrecipitationGpu, PrecipitationView, SPLASH_RING,
 };
 use crate::gpu::kernel::{Kernel, groups, queue_kernel, ready};
+use crate::plugin::ElementsSystems;
 
 /// Threads per workgroup of the particle kernel (`@workgroup_size(64, 1, 1)`).
 const WORKGROUP: u32 = 64;
@@ -73,15 +74,28 @@ pub(super) fn plugin(app: &mut App) {
     };
     render_app
         .init_resource::<PrecipitationUniforms>()
-        .add_systems(RenderStartup, init_pipelines)
-        .add_systems(Render, prepare.in_set(RenderSystems::PrepareBindGroups))
+        .add_systems(
+            RenderStartup,
+            init_pipelines.in_set(ElementsSystems::Render),
+        )
+        .add_systems(
+            Render,
+            prepare
+                .in_set(RenderSystems::PrepareBindGroups)
+                .in_set(ElementsSystems::Render),
+        )
         .add_systems(
             RenderGraph,
             simulate
                 .after(crate::terrain::TerrainDispatch)
-                .before(camera_driver),
+                .before(camera_driver)
+                .in_set(ElementsSystems::Render),
         )
-        .add_systems(Core3d, draw.in_set(Core3dSystems::EarlyPostProcess));
+        .add_systems(
+            Core3d,
+            draw.in_set(Core3dSystems::EarlyPostProcess)
+                .in_set(ElementsSystems::Render),
+        );
 }
 
 fn sim_layout() -> BindGroupLayoutDescriptor {

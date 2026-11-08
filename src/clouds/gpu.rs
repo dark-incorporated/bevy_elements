@@ -43,6 +43,7 @@ use bevy::shader::Shader;
 
 use super::{CloudGpu, CloudParams, CloudView, NOISE_BASE_TEXELS, NOISE_DETAIL_TEXELS};
 use crate::gpu::kernel::{Kernel, WG3, groups, queue_kernel, ready};
+use crate::plugin::ElementsSystems;
 
 impl ExtractResource<RenderApp> for CloudGpu {
     type Source = CloudGpu;
@@ -119,14 +120,23 @@ pub(super) fn plugin(app: &mut App) {
     render_app
         .init_resource::<CloudUniform>()
         .init_resource::<CloudProgress>()
-        .add_systems(RenderStartup, init_pipelines)
+        .add_systems(
+            RenderStartup,
+            init_pipelines.in_set(ElementsSystems::Render),
+        )
         .add_systems(
             Render,
             (prepare_global, prepare_views)
                 .chain()
-                .in_set(RenderSystems::PrepareBindGroups),
+                .in_set(RenderSystems::PrepareBindGroups)
+                .in_set(ElementsSystems::Render),
         )
-        .add_systems(RenderGraph, dispatch_global.before(camera_driver))
+        .add_systems(
+            RenderGraph,
+            dispatch_global
+                .before(camera_driver)
+                .in_set(ElementsSystems::Render),
+        )
         .add_systems(
             Core3d,
             (
@@ -137,7 +147,8 @@ pub(super) fn plugin(app: &mut App) {
                 cloud_composite
                     .in_set(Core3dSystems::MainPass)
                     .after(main_transparent_pass_3d),
-            ),
+            )
+                .in_set(ElementsSystems::Render),
         );
 }
 

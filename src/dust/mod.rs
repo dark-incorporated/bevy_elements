@@ -43,6 +43,8 @@ use model::{StepClock, can_transport};
     derive(serde::Serialize, serde::Deserialize),
     serde(default)
 )]
+#[reflect(Resource, Default)]
+#[cfg_attr(feature = "serde", reflect(Serialize, Deserialize))]
 pub struct DustSettings {
     /// Whether the wind moves sand. Default `true`.
     pub enabled: bool,
@@ -151,6 +153,7 @@ impl Plugin for DustPlugin {
         load_shader_library!(app, "surface_wind.wesl");
         embedded_asset!(app, "aeolian.wesl");
         app.init_resource::<DustSettings>()
+            .register_type::<DustSettings>()
             .init_resource::<DustStats>()
             .init_resource::<DustRuntime>()
             .add_systems(

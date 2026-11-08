@@ -26,6 +26,7 @@ use bevy::render::{Render, RenderApp, RenderStartup, RenderSystems};
 use super::{AeolianParams, DustGpu};
 use crate::gpu::kernel::{Kernel, groups, queue_kernel, ready};
 use crate::hydrology::{HydroParams, HydrologyDispatch, HydrologyPipelines};
+use crate::plugin::ElementsSystems;
 use crate::terrain::{TerrainDispatch, TerrainGpu};
 
 impl ExtractResource<RenderApp> for DustGpu {
@@ -62,14 +63,23 @@ pub(super) fn plugin(app: &mut App) {
     };
     render_app
         .init_resource::<DustUniforms>()
-        .add_systems(RenderStartup, init_pipelines)
-        .add_systems(Render, prepare.in_set(RenderSystems::PrepareBindGroups))
+        .add_systems(
+            RenderStartup,
+            init_pipelines.in_set(ElementsSystems::Render),
+        )
+        .add_systems(
+            Render,
+            prepare
+                .in_set(RenderSystems::PrepareBindGroups)
+                .in_set(ElementsSystems::Render),
+        )
         .add_systems(
             RenderGraph,
             dispatch
                 .after(HydrologyDispatch)
                 .before(TerrainDispatch)
-                .before(camera_driver),
+                .before(camera_driver)
+                .in_set(ElementsSystems::Render),
         );
 }
 

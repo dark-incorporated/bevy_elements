@@ -88,6 +88,7 @@ const KIND_PARKED: u32 = 3;
 /// splashes on its top face); the nearest [`MAX_PRECIPITATION_BLOCKERS`] to the camera are
 /// tested.
 #[derive(Component, Clone, Copy, Debug, Default, PartialEq, Reflect)]
+#[reflect(Component)]
 #[require(Transform)]
 pub struct PrecipitationBlocker {
     /// Half the box's size along each local axis, m, before the transform's scale. A component
@@ -261,6 +262,7 @@ pub struct PrecipitationPlugin;
 
 impl Plugin for PrecipitationPlugin {
     fn build(&self, app: &mut App) {
+        app.register_type::<PrecipitationBlocker>();
         ensure_gpu_core(app);
         needs_depth_prepass(app);
         load_shader_library!(app, "common.wesl");

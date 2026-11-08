@@ -470,10 +470,11 @@ impl Plugin for CloudPlugin {
         embedded_asset!(app, "composite.wesl");
         app.init_resource::<LightningFlash>()
             .init_resource::<RainbowSettings>()
+            .register_type::<RainbowSettings>()
             .init_resource::<CloudLayer>()
             .init_resource::<CloudRuntime>()
             .init_resource::<CelestialFrame>()
-            .add_systems(Startup, create_resources)
+            .add_systems(Startup, create_resources.in_set(ElementsSystems::Setup))
             .add_systems(
                 Update,
                 (

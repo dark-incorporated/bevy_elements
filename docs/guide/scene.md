@@ -4,7 +4,7 @@ How a scene joins the crate: frame order, the camera it follows, a focus for cam
 
 ## Frame order
 
-Everything runs in `Update` in the chained sets `ElementsSystems::{Clock, Weather, Celestial, Simulation, Readback}`. Systems that write `WorldClock`, `WeatherDirector` or settings run `.before(ElementsSystems::Clock)`; systems that read `Environment` run `.after(ElementsSystems::Readback)`.
+Every system the crate adds is in `ElementsSystems`. The frame runs in `Update` in the chained sets `ElementsSystems::{Clock, Weather, Celestial, Simulation, Readback, Apply}`; `Setup` holds the `Startup` systems and `Render` the render world's own. Systems that write `WorldClock`, `WeatherDirector` or settings run `.before(ElementsSystems::Clock)`; systems that read `Environment` run `.after(ElementsSystems::Readback)` (`Apply` is after it). A project that saves a forced weather sets `WeatherOverrideSettings { preset: Some(..) }`; `None` lets the scheduler choose.
 
 ## The camera
 

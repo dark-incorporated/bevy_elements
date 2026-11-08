@@ -28,11 +28,54 @@ pub struct SeasonChanged {
     pub season: Season,
 }
 
+/// The game time a forced or released weather takes to blend, in seconds: ten minutes, as
+/// [`WeatherOverrideSettings`] applies it.
+pub const WEATHER_OVERRIDE_BLEND_S: f32 = 10.0 * 60.0;
+
+/// The weather a project forces. `None` lets the climate's scheduler choose.
+///
+/// A settings resource: a project saves it, and [`apply_weather_override`] hands a change to the
+/// [`WeatherDirector`] in [`ElementsSystems::Weather`], blending over
+/// [`WEATHER_OVERRIDE_BLEND_S`] seconds of game time. `Some(preset)` forces the preset;
+/// changing it back to `None` releases the director to the scheduler. The first frame applies the
+/// resource only when it holds a preset, so a restored [`WeatherDirector`] that is already forced
+/// is not released by the default `None`.
+#[derive(Resource, Clone, Copy, Debug, Default, PartialEq, Eq, Reflect)]
+#[cfg_attr(
+    feature = "serde",
+    derive(serde::Serialize, serde::Deserialize),
+    serde(default)
+)]
+#[reflect(Resource, Default)]
+#[cfg_attr(feature = "serde", reflect(Serialize, Deserialize))]
+pub struct WeatherOverrideSettings {
+    /// The preset to hold, or `None` to let the scheduler choose.
+    pub preset: Option<WeatherPreset>,
+}
+
+/// Force or release the [`WeatherDirector`] when [`WeatherOverrideSettings`] changes.
+///
+/// Runs first in the climate chain, so the request is carried out the same frame.
+pub fn apply_weather_override(
+    settings: Res<WeatherOverrideSettings>,
+    mut director: ResMut<WeatherDirector>,
+) {
+    if !settings.is_changed() || (settings.is_added() && settings.preset.is_none()) {
+        return;
+    }
+    let blend = std::time::Duration::from_secs_f32(WEATHER_OVERRIDE_BLEND_S);
+    match settings.preset {
+        Some(preset) => director.force(preset, blend),
+        None if director.is_forced() => director.release(blend),
+        None => {}
+    }
+}
+
 /// Climate, seasons, weather, surface weathering and the record of recent days.
 ///
 /// Inserts (if absent) [`Climate`], [`WeatherDirector`], [`SeasonState`],
-/// [`SurfaceWeathering`] and [`ClimateHistory`], and writes [`Weather`] every frame in
-/// [`ElementsSystems::Weather`].
+/// [`SurfaceWeathering`], [`ClimateHistory`] and [`WeatherOverrideSettings`], and writes
+/// [`Weather`] every frame in [`ElementsSystems::Weather`].
 pub struct ClimatePlugin;
 
 impl Plugin for ClimatePlugin {
@@ -43,11 +86,15 @@ impl Plugin for ClimatePlugin {
             .init_resource::<SeasonState>()
             .init_resource::<SurfaceWeathering>()
             .init_resource::<ClimateHistory>()
+            .init_resource::<WeatherOverrideSettings>()
+            .register_type::<Climate>()
+            .register_type::<WeatherOverrideSettings>()
             .add_message::<WeatherChanged>()
             .add_message::<SeasonChanged>()
             .add_systems(
                 Update,
                 (
+                    apply_weather_override,
                     update_season,
                     weather::run_weather,
                     weathering::update_weathering,

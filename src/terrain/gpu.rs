@@ -31,6 +31,7 @@ use super::model::LEAF_CELLS;
 use super::sculpt::SculptParamsGpu;
 use super::{GenParams, GenerateSource, HeightmapParams, TerrainGpu, TerrainParamsGpu};
 use crate::gpu::kernel::{Kernel, groups, queue_kernel, ready};
+use crate::plugin::ElementsSystems;
 
 impl ExtractResource<RenderApp> for TerrainGpu {
     type Source = TerrainGpu;
@@ -80,11 +81,22 @@ pub(super) fn plugin(app: &mut App) {
     };
     render_app
         .init_resource::<TerrainUniforms>()
-        .add_systems(RenderStartup, init_pipelines)
-        .add_systems(Render, prepare.in_set(RenderSystems::PrepareBindGroups))
+        .add_systems(
+            RenderStartup,
+            init_pipelines.in_set(ElementsSystems::Render),
+        )
+        .add_systems(
+            Render,
+            prepare
+                .in_set(RenderSystems::PrepareBindGroups)
+                .in_set(ElementsSystems::Render),
+        )
         .add_systems(
             RenderGraph,
-            dispatch.in_set(TerrainDispatch).before(camera_driver),
+            dispatch
+                .in_set(TerrainDispatch)
+                .before(camera_driver)
+                .in_set(ElementsSystems::Render),
         );
 }
 

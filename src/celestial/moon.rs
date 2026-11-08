@@ -170,8 +170,8 @@ pub(super) struct MoonDisc;
 pub(super) fn plugin(app: &mut App) {
     embedded_asset!(app, "moon.wesl");
     app.add_plugins(MaterialPlugin::<MoonMaterial>::default())
-        .add_systems(Startup, spawn_moon)
-        .add_systems(Update, update_moon.after(ElementsSystems::Celestial));
+        .add_systems(Startup, spawn_moon.in_set(ElementsSystems::Setup))
+        .add_systems(Update, update_moon.in_set(ElementsSystems::Apply));
 }
 
 /// The box-filtered mip chain of a `width × height` byte map, level 0 first, as one buffer

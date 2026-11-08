@@ -92,7 +92,13 @@ const fn days_in_month(year: i32, month: u8) -> u8 {
 /// The game's calendar and time of day. Advances in [`ElementsSystems::Clock`] by
 /// `Time<Virtual>` delta × `time_scale`.
 #[derive(Resource, Clone, Debug, Reflect)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "serde",
+    derive(serde::Serialize, serde::Deserialize),
+    serde(default)
+)]
+#[reflect(Resource, Default)]
+#[cfg_attr(feature = "serde", reflect(Serialize, Deserialize))]
 pub struct WorldClock {
     /// Local calendar date.
     pub date: CivilDate,
@@ -166,7 +172,13 @@ impl WorldClock {
 
 /// Where the observer stands on Earth.
 #[derive(Resource, Clone, Debug, Reflect)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "serde",
+    derive(serde::Serialize, serde::Deserialize),
+    serde(default)
+)]
+#[reflect(Resource, Default)]
+#[cfg_attr(feature = "serde", reflect(Serialize, Deserialize))]
 pub struct GeoLocation {
     /// Geographic latitude, degrees north (negative south). Default 45.
     pub latitude_deg: f64,
@@ -232,7 +244,9 @@ pub(crate) fn advance_clock(
 
 pub(crate) fn plugin(app: &mut App) {
     app.init_resource::<WorldClock>()
+        .register_type::<WorldClock>()
         .init_resource::<GeoLocation>()
+        .register_type::<GeoLocation>()
         .init_resource::<ClockJump>()
         .add_systems(Update, advance_clock.in_set(ElementsSystems::Clock));
 }

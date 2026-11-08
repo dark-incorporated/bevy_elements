@@ -47,6 +47,7 @@ use model::{
 /// stretched ellipsoid and a person wading with one per leg. The 32 nearest to the camera
 /// press each frame.
 #[derive(Component, Clone, Copy, Debug, PartialEq, Reflect)]
+#[reflect(Component)]
 #[require(Transform)]
 pub struct WaterContact {
     /// Half extents of the ellipsoid along the entity's local X, Y and Z, m.
@@ -72,6 +73,8 @@ impl WaterContact {
     derive(serde::Serialize, serde::Deserialize),
     serde(default)
 )]
+#[reflect(Resource, Default)]
+#[cfg_attr(feature = "serde", reflect(Serialize, Deserialize))]
 pub struct WaveSettings {
     /// Simulate and draw the waves. Default `true`.
     pub enabled: bool,
@@ -168,9 +171,11 @@ pub struct WavesPlugin;
 
 impl Plugin for WavesPlugin {
     fn build(&self, app: &mut App) {
+        app.register_type::<WaterContact>();
         ensure_gpu_core(app);
         embedded_asset!(app, "waves.wesl");
         app.init_resource::<WaveSettings>()
+            .register_type::<WaveSettings>()
             .init_resource::<WaveRuntime>()
             .add_systems(
                 Update,

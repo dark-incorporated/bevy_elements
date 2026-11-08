@@ -39,6 +39,8 @@ use model::{
     derive(serde::Serialize, serde::Deserialize),
     serde(default)
 )]
+#[reflect(Resource, Default)]
+#[cfg_attr(feature = "serde", reflect(Serialize, Deserialize))]
 pub struct RockSettings {
     /// Cover of a talus apron: the band of slope at a cliff's foot where the terrain material
     /// draws its scree (16°–40°, densest at 26°). Default 0.30.
@@ -95,6 +97,7 @@ fn is_allowed(allowed: Option<&[Rect]>, xz: Vec2) -> bool {
 /// and a far mesh, crossfaded by [`VisibilityRange`]); the near child's mesh is kept in the main
 /// world, so a game can build a collider from it when this component is added.
 #[derive(Component, Clone, Copy, Debug, PartialEq, Reflect)]
+#[reflect(Component)]
 pub struct ScatteredRock {
     /// Its diameter in plan, m (the mean of its long and middle axes).
     pub diameter_m: f32,
@@ -119,20 +122,22 @@ pub struct RocksPlugin;
 
 impl Plugin for RocksPlugin {
     fn build(&self, app: &mut App) {
+        app.register_type::<ScatteredRock>();
         if !app.is_plugin_added::<WeatheredPlugin>() {
             app.add_plugins(WeatheredPlugin);
         }
         app.init_resource::<RockSettings>()
+            .register_type::<RockSettings>()
             .init_resource::<RockStats>()
             .init_resource::<RockField>()
-            .add_systems(Startup, create_assets)
+            .add_systems(Startup, create_assets.in_set(ElementsSystems::Setup))
             .add_systems(
                 Update,
                 (update_levels, scatter, seat_rocks)
                     .chain()
-                    .after(ElementsSystems::Readback),
+                    .in_set(ElementsSystems::Apply),
             )
-            .add_systems(Update, grade_rocks);
+            .add_systems(Update, grade_rocks.in_set(ElementsSystems::Apply));
     }
 }
 

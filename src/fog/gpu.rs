@@ -20,6 +20,7 @@ use bevy::render::{Render, RenderApp, RenderStartup, RenderSystems};
 
 use super::{FogGpu, FogParams};
 use crate::gpu::kernel::{Kernel, WG3, groups, queue_kernel, ready};
+use crate::plugin::ElementsSystems;
 
 impl ExtractResource<RenderApp> for FogGpu {
     type Source = FogGpu;
@@ -45,9 +46,19 @@ pub(super) fn plugin(app: &mut App) {
     };
     render_app
         .init_resource::<FogUniform>()
-        .add_systems(RenderStartup, init_pipeline)
-        .add_systems(Render, prepare.in_set(RenderSystems::PrepareBindGroups))
-        .add_systems(RenderGraph, dispatch.before(camera_driver));
+        .add_systems(RenderStartup, init_pipeline.in_set(ElementsSystems::Render))
+        .add_systems(
+            Render,
+            prepare
+                .in_set(RenderSystems::PrepareBindGroups)
+                .in_set(ElementsSystems::Render),
+        )
+        .add_systems(
+            RenderGraph,
+            dispatch
+                .before(camera_driver)
+                .in_set(ElementsSystems::Render),
+        );
 }
 
 fn init_pipeline(mut commands: Commands, assets: Res<AssetServer>, cache: Res<PipelineCache>) {

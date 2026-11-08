@@ -1,5 +1,13 @@
 ## [Unreleased]
 
+### Added
+
+- **`WeatherOverrideSettings { preset: Option<WeatherPreset> }` and `apply_weather_override`.** A settings resource a project saves: `Some(preset)` forces that weather, `None` releases the director to the climate's scheduler, blending over `WEATHER_OVERRIDE_BLEND_S` (ten game minutes). `ClimatePlugin` inits it and the system runs first in `ElementsSystems::Weather`, on a change only (the first frame only when it holds a preset, so a restored forced director is not released by the default). It moves the editor's force and release logic into the crate.
+
+### Changed
+
+- **Breaking: `bevy_elements` meets the family's machine plate.** `ElementsSystems` is the one root set and now holds every system the plugins add: new variants `Apply` (after `Readback`: the crate writes what it simulated into the game's world), `Setup` (`Startup`) and `Render` (the render world's own systems, in `RenderStartup`, `Render`, `RenderGraph` and `Core3d`). Systems that only ordered themselves `.after(Readback)`, `.after(Simulation)` or `.after(Celestial)` (moon and stars, weathered materials, terrain textures and patches, water, rocks, voxel snow, flora wind) are now in `Apply`; `VoxelGroundSystems` is in `Apply` and `voxel_ground_erosion_guard` is in `Weather`. Bevy's own `RenderSystems` is untouched. Every settings resource (`WaveSettings`, `TrailSettings`, `RockSettings`, `WaterSettings`, `HydrologySettings`, `ErosionSettings`, `DustSettings`, `SnowSettings`, `WetnessSettings`, `RainbowSettings`, `CelestialSettings`) plus `WorldClock`, `GeoLocation` and `Climate` derives `Reflect` with `#[reflect(Resource, Default)]` and, with `serde`, `reflect(Serialize, Deserialize)` and `serde(default)` at struct level, and is registered by its plugin. Every public component (`ElementsCamera`, `ElementsFocus`, `GroundFog`, `Imprint`, `Moon`, `PrecipitationBlocker`, `ScatteredRock`, `Sun`, `Terrain`, `TerrainTextures`, `WaterContact`, `WaterPatch`, `WaterSink`, `WaterSource`, and with `isomesh` `VoxelGround` and `VoxelSnow`) derives `Reflect` with `#[reflect(Component)]` and is registered; `TerrainSource` and `TerrainRender` derive `Reflect` for `Terrain`. `tests/machine_plate.rs` checks all of it.
+
 ## [0.8.0] - 2026-11-06
 
 ### Changed

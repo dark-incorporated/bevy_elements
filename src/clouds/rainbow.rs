@@ -407,7 +407,13 @@ pub(crate) fn shower_params(weather: &Weather) -> Vec4 {
 /// shower in the weather map opposite it and the sun reaching that shower
 /// (`docs/research/rainbow.md`).
 #[derive(Resource, Clone, Debug, Reflect)]
-#[reflect(Resource)]
+#[cfg_attr(
+    feature = "serde",
+    derive(serde::Serialize, serde::Deserialize),
+    serde(default)
+)]
+#[reflect(Resource, Default)]
+#[cfg_attr(feature = "serde", reflect(Serialize, Deserialize))]
 pub struct RainbowSettings {
     /// The gain on the sun's light on the shower; 0 switches the rainbow off, 1 is the thin-curtain
     /// estimate `E · p · τ` as it stands. Default 5, which makes the primary bow of a 5 mm/h

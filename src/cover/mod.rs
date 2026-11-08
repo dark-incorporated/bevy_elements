@@ -57,6 +57,8 @@ const SNOW_FALL_SPEED_MS: f32 = 1.0;
     derive(serde::Serialize, serde::Deserialize),
     serde(default)
 )]
+#[reflect(Resource, Default)]
+#[cfg_attr(feature = "serde", reflect(Serialize, Deserialize))]
 pub struct SnowSettings {
     /// Density of fresh snow, kg/m³. Default 100.
     pub new_density: f32,
@@ -105,6 +107,8 @@ impl Default for SnowSettings {
     derive(serde::Serialize, serde::Deserialize),
     serde(default)
 )]
+#[reflect(Resource, Default)]
+#[cfg_attr(feature = "serde", reflect(Serialize, Deserialize))]
 pub struct WetnessSettings {
     /// Wetness gained per mm of rain: 1 is a film of `1 / wet_per_mm` mm. Default 0.5.
     pub wet_per_mm: f32,
@@ -345,7 +349,9 @@ impl Plugin for GroundCoverPlugin {
         embedded_asset!(app, "shelter.wesl");
         embedded_asset!(app, "readback.wesl");
         app.init_resource::<SnowSettings>()
+            .register_type::<SnowSettings>()
             .init_resource::<WetnessSettings>()
+            .register_type::<WetnessSettings>()
             .init_resource::<CoverStats>()
             .init_resource::<Climate>()
             .init_resource::<WorldClock>()

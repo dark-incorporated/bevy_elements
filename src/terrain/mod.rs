@@ -64,7 +64,7 @@ pub use textures::{GroundLayerTextures, TerrainTextures};
 const READBACK_MAX_CELLS: u32 = 1024;
 
 /// How a terrain's surface is made.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Reflect)]
 pub enum TerrainSource {
     /// Generated on the GPU from noise, once, when the terrain spawns.
     Procedural(ProceduralTerrain),
@@ -173,7 +173,7 @@ impl ProceduralTerrain {
 }
 
 /// Who draws the ground.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Reflect)]
 pub enum TerrainRender {
     /// The crate draws the ground with its own level-of-detail mesh and layer-blending material.
     #[default]
@@ -188,7 +188,8 @@ pub enum TerrainRender {
 /// `translation.y + h`, both read through [`ElementsUnits`](crate::ElementsUnits): `Terrain`'s
 /// own lengths are metres); rotation and scale are ignored. One terrain exists at a time: a second
 /// `Terrain` entity logs a warning and is ignored.
-#[derive(Component, Clone, Debug, PartialEq)]
+#[derive(Component, Clone, Debug, PartialEq, Reflect)]
+#[reflect(Component)]
 #[require(Transform, Visibility)]
 pub struct Terrain {
     /// Where the surface comes from.
@@ -536,6 +537,8 @@ pub struct TerrainPlugin;
 
 impl Plugin for TerrainPlugin {
     fn build(&self, app: &mut App) {
+        app.register_type::<Terrain>();
+        app.register_type::<TerrainTextures>();
         ensure_gpu_core(app);
         embedded_asset!(app, "generate.wesl");
         embedded_asset!(app, "heightmap.wesl");
@@ -564,19 +567,19 @@ impl Plugin for TerrainPlugin {
             )
                 .in_set(ElementsSystems::Simulation),
         )
+        .add_systems(Update, read_terrain.in_set(ElementsSystems::Readback))
         .add_systems(
             Update,
-            (
-                read_terrain.in_set(ElementsSystems::Readback),
-                textures::pack_terrain_textures,
-                material::update_materials,
-            )
+            (textures::pack_terrain_textures, material::update_materials)
                 .chain()
-                .after(ElementsSystems::Simulation),
+                .after(read_terrain)
+                .in_set(ElementsSystems::Apply),
         )
         .add_systems(
             PostUpdate,
-            update_patches.before(TransformSystems::Propagate),
+            update_patches
+                .before(TransformSystems::Propagate)
+                .in_set(ElementsSystems::Apply),
         );
         gpu::plugin(app);
     }

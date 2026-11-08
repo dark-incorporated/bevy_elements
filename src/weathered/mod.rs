@@ -386,7 +386,7 @@ impl Plugin for WeatheredPlugin {
                 Update,
                 (update_globals, update_materials)
                     .chain()
-                    .after(ElementsSystems::Simulation),
+                    .in_set(ElementsSystems::Apply),
             );
     }
 }

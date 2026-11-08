@@ -298,8 +298,8 @@ pub(super) struct StarField;
 pub(super) fn plugin(app: &mut App) {
     embedded_asset!(app, "stars.wesl");
     app.add_plugins(MaterialPlugin::<StarsMaterial>::default())
-        .add_systems(Startup, spawn_stars)
-        .add_systems(Update, update_stars.after(ElementsSystems::Celestial));
+        .add_systems(Startup, spawn_stars.in_set(ElementsSystems::Setup))
+        .add_systems(Update, update_stars.in_set(ElementsSystems::Apply));
 }
 
 fn spawn_stars(

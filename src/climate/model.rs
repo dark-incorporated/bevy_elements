@@ -63,7 +63,13 @@ impl SnowSeason {
 /// `mean + annual·cos(2π(d − warmest)/365.25) + diurnal·cos(2π(h − 15)/24) + weather offset − 0.0065·(z − reference)`.
 /// In the southern hemisphere (`GeoLocation::latitude_deg < 0`) `warmest_day` is shifted by +182.
 #[derive(Resource, Clone, Debug, Reflect)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "serde",
+    derive(serde::Serialize, serde::Deserialize),
+    serde(default)
+)]
+#[reflect(Resource, Default)]
+#[cfg_attr(feature = "serde", reflect(Serialize, Deserialize))]
 pub struct Climate {
     /// Annual mean air temperature at the reference elevation, °C.
     pub mean_temperature_c: f32,

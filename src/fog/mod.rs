@@ -64,6 +64,7 @@ const OFFSET_WRAP_M: f32 = 80.0 * 4096.0;
 
 /// Marks the camera-following ground-fog `FogVolume` this crate spawns.
 #[derive(Component, Clone, Copy, Debug, Default, Reflect)]
+#[reflect(Component)]
 pub struct GroundFog;
 
 /// Extinction coefficient for a visibility, m-¹ (Koschmieder, 2 % contrast).
@@ -309,12 +310,13 @@ pub struct FogPlugin;
 
 impl Plugin for FogPlugin {
     fn build(&self, app: &mut App) {
+        app.register_type::<GroundFog>();
         ensure_gpu_core(app);
         embedded_asset!(app, "density.wesl");
         app.init_resource::<FogRuntime>()
             .init_resource::<WeatherDirector>()
             .init_resource::<CelestialFrame>()
-            .add_systems(Startup, spawn_volume)
+            .add_systems(Startup, spawn_volume.in_set(ElementsSystems::Setup))
             .add_systems(
                 Update,
                 (

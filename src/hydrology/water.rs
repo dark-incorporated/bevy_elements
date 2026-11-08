@@ -34,7 +34,9 @@ use bevy::transform::TransformSystems;
 
 use super::water_gpu;
 use crate::clouds::CloudShadows;
-use crate::plugin::{ElementsUnits, ElementsView, ensure_gpu_core, needs_depth_prepass};
+use crate::plugin::{
+    ElementsSystems, ElementsUnits, ElementsView, ensure_gpu_core, needs_depth_prepass,
+};
 use crate::terrain::lod::MAX_LEVELS;
 use crate::terrain::{
     NO_TERRAIN, TerrainParamsGpu, TerrainRuntime, TerrainState, assign_slots, lod_centre_uniform,
@@ -114,6 +116,8 @@ pub struct StillWater {
     derive(serde::Serialize, serde::Deserialize),
     serde(default)
 )]
+#[reflect(Resource, Default)]
+#[cfg_attr(feature = "serde", reflect(Serialize, Deserialize))]
 pub struct WaterSettings {
     /// Absorption of the water per linear colour channel, m⁻¹: the light's transmittance through
     /// `t` metres is `exp(−σ t)`. Default `(0.45, 0.06, 0.03)`: slightly tinted natural water
@@ -284,7 +288,8 @@ pub type WaterMaterial = ExtendedMaterial<StandardMaterial, WaterExtension>;
 
 /// Marks the entities of the water pool. A patch is drawn twice, by an absorb entity and a
 /// surface entity with the same transform and bounds.
-#[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Component, Clone, Copy, Debug, PartialEq, Eq, Reflect)]
+#[reflect(Component)]
 pub struct WaterPatch {
     /// `true` for the entity of the surface pass, `false` for the absorb pass.
     pub surface: bool,
@@ -333,25 +338,28 @@ pub struct WaterPlugin;
 
 impl Plugin for WaterPlugin {
     fn build(&self, app: &mut App) {
+        app.register_type::<WaterPatch>();
         ensure_gpu_core(app);
         needs_depth_prepass(app);
         embedded_asset!(app, "water.wesl");
         embedded_asset!(app, "water_normals.wesl");
         app.add_plugins(MaterialPlugin::<WaterMaterial>::default())
             .init_resource::<WaterSettings>()
+            .register_type::<WaterSettings>()
             .init_resource::<WaterRuntime>()
-            .add_systems(Startup, create_normal_map)
+            .add_systems(Startup, create_normal_map.in_set(ElementsSystems::Setup))
             .add_systems(
                 Update,
                 (ensure_water_pool, update_water_materials)
                     .chain()
-                    .after(crate::plugin::ElementsSystems::Readback),
+                    .in_set(ElementsSystems::Apply),
             )
             .add_systems(
                 PostUpdate,
                 (update_water_patches, update_water_skirt)
                     .after(crate::terrain::update_patches)
-                    .before(TransformSystems::Propagate),
+                    .before(TransformSystems::Propagate)
+                    .in_set(ElementsSystems::Apply),
             );
         water_gpu::plugin(app);
     }

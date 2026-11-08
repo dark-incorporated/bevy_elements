@@ -71,11 +71,12 @@ impl PluginGroup for ElementsPlugins {
     }
 }
 
-/// The phases of one environment frame, chained in this order in `Update`.
+/// The crate's one root set: every system the plugins add is in one of its variants. The first six
+/// are the phases of one environment frame, chained in this order in `Update`.
 ///
 /// Systems that write `WorldClock`, `WeatherDirector` or settings run
 /// `.before(ElementsSystems::Clock)`; systems that read `Environment` run
-/// `.after(ElementsSystems::Readback)`.
+/// `.after(ElementsSystems::Readback)`, or are in [`Apply`](Self::Apply), which is after it.
 #[derive(SystemSet, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ElementsSystems {
     /// The world clock advances and the followed camera is chosen.
@@ -88,6 +89,14 @@ pub enum ElementsSystems {
     Simulation,
     /// Readback requests are issued and completed readbacks have filled `EnvironmentSnapshot`.
     Readback,
+    /// The crate writes what it simulated into the game's world (materials, meshes, props, the
+    /// sky's bodies, wind and season for the flora): after this frame's readbacks.
+    Apply,
+    /// Systems that run once, in `Startup`: they spawn the crate's entities and assets.
+    Setup,
+    /// Systems the crate adds to the render world, in the render sub-app's `RenderStartup`,
+    /// `Render`, `RenderGraph` and `Core3d` schedules. Not part of the `Update` chain.
+    Render,
 }
 
 /// Marks the camera the environment follows and renders for.
@@ -113,6 +122,7 @@ pub enum ElementsSystems {
 /// none, the camera-relative simulations (wind, fog volume, clouds) idle while the clock, weather
 /// and gameplay queries keep running.
 #[derive(Component, Clone, Copy, Debug, PartialEq, Eq, Reflect)]
+#[reflect(Component)]
 #[require(Hdr)]
 pub struct ElementsCamera {
     /// Drive the camera's `Exposure` from the sun, moon and sky illuminance. Default `true`.
@@ -168,6 +178,7 @@ impl ElementsCamera {
 /// (`docs/research/view-anchor.md`). An `Entity` focus without a `GlobalTransform` falls back
 /// to the camera.
 #[derive(Component, Clone, Copy, Debug, PartialEq, Reflect)]
+#[reflect(Component)]
 pub enum ElementsFocus {
     /// That entity's `GlobalTransform` translation, read every frame.
     Entity(Entity),
@@ -415,6 +426,8 @@ pub(crate) struct ElementsCorePlugin;
 
 impl Plugin for ElementsCorePlugin {
     fn build(&self, app: &mut App) {
+        app.register_type::<ElementsCamera>();
+        app.register_type::<ElementsFocus>();
         clock_plugin(app);
         app.configure_sets(
             Update,
@@ -424,6 +437,7 @@ impl Plugin for ElementsCorePlugin {
                 ElementsSystems::Celestial,
                 ElementsSystems::Simulation,
                 ElementsSystems::Readback,
+                ElementsSystems::Apply,
             )
                 .chain(),
         )
@@ -694,7 +708,11 @@ fn dress_camera(add: On<Add<ElementsCamera>>, mut dresser: Dresser) {
 /// `remove::<(AtmosphereSettings, AtmosphereEnvironmentMapLight)>: Entity despawned`, on
 /// bevy_dark_factory 2026-11-03. `get_entity` is the check: if the entity is not alive there is nothing
 /// to undress, and the components went with it.
-fn undress_camera(remove: On<Remove<ElementsCamera>>, mut commands: Commands, dressed: Query<&ElementsDressing>) {
+fn undress_camera(
+    remove: On<Remove<ElementsCamera>>,
+    mut commands: Commands,
+    dressed: Query<&ElementsDressing>,
+) {
     let entity = remove.entity;
     let Ok(ours) = dressed.get(entity) else {
         return;
@@ -710,7 +728,10 @@ fn undress_camera(remove: On<Remove<ElementsCamera>>, mut commands: Commands, dr
     let mut e = commands.entity(entity);
     let silence = |e: &mut EntityCommands, ours: ElementsDressing| {
         if ours.atmosphere {
-            e.queue_silenced(bevy::ecs::system::entity_command::remove::<(AtmosphereSettings, AtmosphereEnvironmentMapLight)>());
+            e.queue_silenced(bevy::ecs::system::entity_command::remove::<(
+                AtmosphereSettings,
+                AtmosphereEnvironmentMapLight,
+            )>());
         }
         if ours.depth_prepass {
             e.queue_silenced(bevy::ecs::system::entity_command::remove::<DepthPrepass>());

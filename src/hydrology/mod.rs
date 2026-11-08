@@ -73,6 +73,8 @@ pub enum HydrologyBoundary {
     derive(serde::Serialize, serde::Deserialize),
     serde(default)
 )]
+#[reflect(Resource, Default)]
+#[cfg_attr(feature = "serde", reflect(Serialize, Deserialize))]
 pub struct HydrologySettings {
     /// The simulation step, s. Default 0.02.
     pub step_s: f32,
@@ -110,6 +112,8 @@ impl Default for HydrologySettings {
     derive(serde::Serialize, serde::Deserialize),
     serde(default)
 )]
+#[reflect(Resource, Default)]
+#[cfg_attr(feature = "serde", reflect(Serialize, Deserialize))]
 pub struct ErosionSettings {
     /// Whether the flow dissolves, carries and deposits sediment and the slopes relax. Default
     /// `true`.
@@ -168,6 +172,7 @@ impl Default for ErosionSettings {
 /// most [`crate::MAX_WATER_SOURCES`] sources and as many [`WaterSink`]s are used (lowest
 /// `Entity` first).
 #[derive(Component, Clone, Copy, Debug, PartialEq, Reflect)]
+#[reflect(Component)]
 #[require(Transform)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct WaterSource {
@@ -180,6 +185,7 @@ pub struct WaterSource {
 /// Drains water from the terrain: up to `rate_m3_s` from the cells within `radius_m` of the
 /// entity's position, never more than is there. See [`WaterSource`].
 #[derive(Component, Clone, Copy, Debug, PartialEq, Reflect)]
+#[reflect(Component)]
 #[require(Transform)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct WaterSink {
@@ -434,13 +440,17 @@ pub struct HydrologyPlugin;
 
 impl Plugin for HydrologyPlugin {
     fn build(&self, app: &mut App) {
+        app.register_type::<WaterSource>();
+        app.register_type::<WaterSink>();
         ensure_gpu_core(app);
         embedded_asset!(app, "substep.wesl");
         embedded_asset!(app, "thermal.wesl");
         embedded_asset!(app, "source_map.wesl");
         embedded_asset!(app, "readback.wesl");
         app.init_resource::<HydrologySettings>()
+            .register_type::<HydrologySettings>()
             .init_resource::<ErosionSettings>()
+            .register_type::<ErosionSettings>()
             .init_resource::<HydrologyStats>()
             .init_resource::<Climate>()
             .init_resource::<HydrologyRuntime>()

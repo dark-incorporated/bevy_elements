@@ -50,14 +50,15 @@ struct BoltVisual {
 struct Ramp(Handle<Image>);
 
 pub(super) fn plugin(app: &mut App) {
-    app.add_systems(Startup, warm_up).add_systems(
-        Update,
-        (attach, animate)
-            .chain()
-            .after(super::advance_bolts)
-            .before(super::write_flash)
-            .in_set(ElementsSystems::Simulation),
-    );
+    app.add_systems(Startup, warm_up.in_set(ElementsSystems::Setup))
+        .add_systems(
+            Update,
+            (attach, animate)
+                .chain()
+                .after(super::advance_bolts)
+                .before(super::write_flash)
+                .in_set(ElementsSystems::Simulation),
+        );
 }
 
 /// The angle one pixel subtends vertically, rad.

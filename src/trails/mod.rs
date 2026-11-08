@@ -53,6 +53,7 @@ use model::{ImprintGpu, MAX_IMPRINTS, MAX_SWEEP_M, window_origin};
 /// for a 77 kg walker on a 10 × 26 cm sole. Between frames it carves the whole path it swept, so
 /// a fast wheel leaves an unbroken rut. The 64 nearest to the focus press each frame.
 #[derive(Component, Clone, Copy, Debug, PartialEq, Reflect)]
+#[reflect(Component)]
 #[require(Transform)]
 pub struct Imprint {
     /// Half extents of the contact ellipse along the entity's local X and Z, m.
@@ -136,6 +137,8 @@ impl std::fmt::Debug for TrailGround {
     derive(serde::Serialize, serde::Deserialize),
     serde(default)
 )]
+#[reflect(Resource, Default)]
+#[cfg_attr(feature = "serde", reflect(Serialize, Deserialize))]
 pub struct TrailSettings {
     /// Press and draw trails. Default `true`.
     pub enabled: bool,
@@ -282,10 +285,13 @@ pub struct TrailsPlugin;
 
 impl Plugin for TrailsPlugin {
     fn build(&self, app: &mut App) {
+        app.register_type::<Imprint>();
         ensure_gpu_core(app);
         embedded_asset!(app, "trails.wesl");
         app.init_resource::<TrailSettings>()
+            .register_type::<TrailSettings>()
             .init_resource::<SnowSettings>()
+            .register_type::<SnowSettings>()
             .init_resource::<TrailRuntime>()
             .add_systems(
                 Update,

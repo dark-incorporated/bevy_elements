@@ -13,8 +13,8 @@ use bevy::light::light_consts::lux;
 use bevy::light::{CascadeShadowConfig, CascadeShadowConfigBuilder, SunDisk, VolumetricLight};
 use bevy::prelude::*;
 
-pub(crate) use clock::{ClockJump, plugin as clock_plugin};
 pub use clock::{CivilDate, GeoLocation, WorldClock};
+pub(crate) use clock::{ClockJump, plugin as clock_plugin};
 
 use crate::climate::Weather;
 use crate::clouds::{CloudShadows, SkyProbe};
@@ -59,10 +59,12 @@ impl Default for ElementsExposure {
 
 /// Marks the sun's `DirectionalLight`.
 #[derive(Component, Clone, Copy, Debug, Default, Reflect)]
+#[reflect(Component)]
 pub struct Sun;
 
 /// Marks the moon's `DirectionalLight`.
 #[derive(Component, Clone, Copy, Debug, Default, Reflect)]
+#[reflect(Component)]
 pub struct Moon;
 
 /// Where the sun and moon are and how much of the moon is lit.
@@ -136,6 +138,13 @@ impl Default for CelestialFrame {
 /// so a game that lights its scene itself still has the sun for `SurfaceWeathering`'s drying and
 /// `Environment::is_daylight` (`docs/research/integration.md`).
 #[derive(Resource, Clone, Copy, Debug, Reflect)]
+#[cfg_attr(
+    feature = "serde",
+    derive(serde::Serialize, serde::Deserialize),
+    serde(default)
+)]
+#[reflect(Resource, Default)]
+#[cfg_attr(feature = "serde", reflect(Serialize, Deserialize))]
 pub struct CelestialSettings {
     /// Spawn the [`Sun`] and [`Moon`] `DirectionalLight`s and drive every light carrying those
     /// markers (direction, illuminance, shadows, cascades). Off: no light is spawned and none is
@@ -166,13 +175,16 @@ pub struct CelestialPlugin;
 
 impl Plugin for CelestialPlugin {
     fn build(&self, app: &mut App) {
+        app.register_type::<Sun>();
+        app.register_type::<Moon>();
         ensure_gpu_core(app);
-        app.init_resource::<CelestialSettings>();
+        app.init_resource::<CelestialSettings>()
+            .register_type::<CelestialSettings>();
         stars::plugin(app);
         moon::plugin(app);
         app.init_resource::<CelestialFrame>()
             .init_resource::<ElementsExposure>()
-            .add_systems(Startup, spawn_lights)
+            .add_systems(Startup, spawn_lights.in_set(ElementsSystems::Setup))
             .add_systems(
                 Update,
                 (

@@ -25,6 +25,7 @@ use super::water::{
     NORMAL_TEXELS, WaterState,
 };
 use crate::gpu::kernel::{Kernel, groups, queue_kernel, ready};
+use crate::plugin::ElementsSystems;
 
 impl ExtractResource<RenderApp> for WaterState {
     type Source = WaterState;
@@ -78,9 +79,22 @@ pub(super) fn plugin(app: &mut App) {
         return;
     };
     render_app
-        .add_systems(RenderStartup, init_pipelines)
-        .add_systems(Render, prepare.in_set(RenderSystems::PrepareBindGroups))
-        .add_systems(RenderGraph, dispatch.before(camera_driver));
+        .add_systems(
+            RenderStartup,
+            init_pipelines.in_set(ElementsSystems::Render),
+        )
+        .add_systems(
+            Render,
+            prepare
+                .in_set(RenderSystems::PrepareBindGroups)
+                .in_set(ElementsSystems::Render),
+        )
+        .add_systems(
+            RenderGraph,
+            dispatch
+                .before(camera_driver)
+                .in_set(ElementsSystems::Render),
+        );
 }
 
 fn normals_layout() -> BindGroupLayoutDescriptor {

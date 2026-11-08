@@ -29,6 +29,7 @@ use bevy::render::{Render, RenderApp, RenderStartup, RenderSystems};
 use super::model::ImprintGpu;
 use super::{TrailGpu, TrailParams};
 use crate::gpu::kernel::{Kernel, groups, queue_kernel, ready};
+use crate::plugin::ElementsSystems;
 use crate::terrain::TerrainDispatch;
 
 impl ExtractResource<RenderApp> for TrailGpu {
@@ -77,11 +78,22 @@ pub(super) fn plugin(app: &mut App) {
     render_app
         .init_resource::<TrailUniforms>()
         .init_resource::<TrailMemory>()
-        .add_systems(RenderStartup, init_pipelines)
-        .add_systems(Render, prepare.in_set(RenderSystems::PrepareBindGroups))
+        .add_systems(
+            RenderStartup,
+            init_pipelines.in_set(ElementsSystems::Render),
+        )
+        .add_systems(
+            Render,
+            prepare
+                .in_set(RenderSystems::PrepareBindGroups)
+                .in_set(ElementsSystems::Render),
+        )
         .add_systems(
             RenderGraph,
-            dispatch.after(TerrainDispatch).before(camera_driver),
+            dispatch
+                .after(TerrainDispatch)
+                .before(camera_driver)
+                .in_set(ElementsSystems::Render),
         );
 }
 

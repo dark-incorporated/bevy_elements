@@ -72,7 +72,9 @@ impl Plugin for ReadbackPlugin {
         if let Some(render_app) = app.get_sub_app_mut(RenderApp) {
             render_app.add_systems(
                 Render,
-                pace_without_window.in_set(RenderSystems::PostCleanup),
+                pace_without_window
+                    .in_set(RenderSystems::PostCleanup)
+                    .in_set(ElementsSystems::Render),
             );
         }
     }

@@ -21,6 +21,7 @@ use bevy::render::{Render, RenderApp, RenderStartup, RenderSystems};
 
 use super::{WindGpu, WindParams};
 use crate::gpu::kernel::{Kernel, WG3, groups, queue_kernel, ready};
+use crate::plugin::ElementsSystems;
 
 impl ExtractResource<RenderApp> for WindGpu {
     type Source = WindGpu;
@@ -65,13 +66,22 @@ pub(super) fn plugin(app: &mut App) {
     };
     render_app
         .init_resource::<WindUniform>()
-        .add_systems(RenderStartup, init_pipelines)
-        .add_systems(Render, prepare.in_set(RenderSystems::PrepareBindGroups))
+        .add_systems(
+            RenderStartup,
+            init_pipelines.in_set(ElementsSystems::Render),
+        )
+        .add_systems(
+            Render,
+            prepare
+                .in_set(RenderSystems::PrepareBindGroups)
+                .in_set(ElementsSystems::Render),
+        )
         .add_systems(
             RenderGraph,
             dispatch
                 .after(crate::terrain::TerrainDispatch)
-                .before(camera_driver),
+                .before(camera_driver)
+                .in_set(ElementsSystems::Render),
         );
 }
 
