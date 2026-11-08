@@ -278,4 +278,4 @@ Assertable; `<` and `≤` are strict as written; every numeric threshold carries
 - `10.1145_37402.37435` (Lorensen & Cline 1987; already in the corpus, converted; index if not yet)
 - `10.1016_j.gmod.2021.101098` (Tereshin et al. 2021; already in the corpus, converted; index if not yet)
 - Not obtained and not searched further: any paper on snow accumulation on implicit surfaces or voxel terrain (none in the corpus; none identified by phrase search), Sethian's level-set book (not in the corpus), Ju et al. 2002 dual contouring (irrelevant: seams are gapped).
-- Dependency: `bevy_isomesh` and `isomesh` 0.0.11 were published on crates.io before the implementation started (the API of PR https://github.com/bevy-coven/isomesh/pull/8); the crate depends on `0.0.11` behind the feature `isomesh`.
+- Dependency: `bevy_isomesh` and `isomesh` 0.0.11 were published on crates.io before the implementation started (the API of PR https://github.com/dark-incorporated/isomesh/pull/8); the crate depends on `0.0.11` behind the feature `isomesh`.

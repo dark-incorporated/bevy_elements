@@ -8,7 +8,7 @@ Frames come from the crate's own capture path: `ELEMENTS_FRAMES=N` (a fixed 1/60
 ffmpeg -framerate 30 -i f_%04d.png -vf "fps=15,scale=960:-1:flags=lanczos,split[a][b];[a]palettegen=stats_mode=diff[p];[b][p]paletteuse=dither=bayer" -loop 0 out.gif
 ```
 
-Every budget in the guide is met: each GIF is 3-8 s, at most 960 px wide, 15 fps and under 4 MB; `tour.gif` is 34 s and is the one exception, kept because it is the whole weather tour, and `tour_hero.gif` is a 6.8 s excerpt of it. GIFs are never in Git LFS: crates.io rewrites a relative image path to `https://github.com/bevy-coven/bevy_elements/raw/HEAD/<path>`.
+Every budget in the guide is met: each GIF is 3-8 s, at most 960 px wide, 15 fps and under 4 MB; `tour.gif` is 34 s and is the one exception, kept because it is the whole weather tour, and `tour_hero.gif` is a 6.8 s excerpt of it. GIFs are never in Git LFS: crates.io rewrites a relative image path to `https://github.com/dark-incorporated/bevy_elements/raw/HEAD/<path>`.
 
 | File | Captured | Crate version | Regenerate |
 |---|---|---|---|
@@ -89,4 +89,4 @@ Every budget in the guide is met: each GIF is 3-8 s, at most 960 px wide, 15 fps
 
 ## Copies at the old paths
 
-Until 2026-10-31 these files lived directly under `docs/` (and some under other `docs/` folders). Every release published before then has a README on crates.io and docs.rs whose image URLs name those old paths, and a published README never changes. So each moved file also stays at its old path, as an identical copy: git stores the same content once, so a copy costs nothing in the repository's size. **Do not delete them as duplicates**; when one of the files here is re-recorded, the old-path copy is updated with it (`docs/media/` is the one new references use). The org's rule is in [DOCUMENTATION.md](https://github.com/bevy-coven/.github/blob/main/DOCUMENTATION.md#image-and-link-urls-in-a-readme).
+Until 2026-10-31 these files lived directly under `docs/` (and some under other `docs/` folders). Every release published before then has a README on crates.io and docs.rs whose image URLs name those old paths, and a published README never changes. So each moved file also stays at its old path, as an identical copy: git stores the same content once, so a copy costs nothing in the repository's size. **Do not delete them as duplicates**; when one of the files here is re-recorded, the old-path copy is updated with it (`docs/media/` is the one new references use). The org's rule is in [DOCUMENTATION.md](https://github.com/dark-incorporated/.github/blob/main/DOCUMENTATION.md#image-and-link-urls-in-a-readme).

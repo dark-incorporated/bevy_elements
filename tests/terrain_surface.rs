@@ -1,5 +1,5 @@
 //! `ProceduralTerrain::sample_surface` generates a preset's surface on the CPU, with no app and no
-//! GPU (bevy_grimoire #99 bakes a preset into its own file this way).
+//! GPU (bevy_dark_factory #99 bakes a preset into its own file this way).
 
 use bevy::math::UVec2;
 use bevy_elements::ProceduralTerrain;

@@ -8,9 +8,9 @@ Pinned to **Bevy 0.20.0**. Read the vendored source and migration guides, not be
 
 ## Source of truth
 
-This repository, [`bevy-coven/bevy_elements`](https://github.com/bevy-coven/bevy_elements), is canonical. MIT OR Apache-2.0. Consumers (Sanctuary at `/Users/ladvien/sanctuary` on the Mac) get fixes here, in their own commits with tests, and never patch a copy.
+This repository, [`dark-incorporated/bevy_elements`](https://github.com/dark-incorporated/bevy_elements), is canonical. MIT OR Apache-2.0. Consumers (Sanctuary at `/Users/ladvien/sanctuary` on the Mac) get fixes here, in their own commits with tests, and never patch a copy.
 
-README and docs follow https://github.com/bevy-coven/.github/blob/main/DOCUMENTATION.md; a feature is not done until its README line and, if visible, its GIF exist.
+README and docs follow https://github.com/dark-incorporated/.github/blob/main/DOCUMENTATION.md; a feature is not done until its README line and, if visible, its GIF exist.
 
 ## Research first
 
@@ -26,7 +26,7 @@ No system is implemented without its `docs/research/<system>.md`, committed firs
 ## Plays well with the family
 
 1. **Bevy pin parity.** Depend only on crates pinned to the same Bevy minor. Couple to 0.19 crates (`bevy_carnage`, `bevy_light_grid`, `bevy_stigmergy`) only through plain data in game glue, documented in the README `Plays well with` section.
-2. **Ownership map.** Foliage, trees, tree wind sway, leaf colour and snow on branches belong to `bevy_flora`. Isosurface and voxel meshing belongs to `isomesh`/`bevy_isomesh`. Blood wetness belongs to `bevy_carnage`. Creature light grids belong to `bevy_light_grid`. WFC and authored world layout belong to `bevy_grimoire`. This crate owns sky, celestial bodies, weather, atmosphere-driving, wind fields, precipitation, clouds, fog, lightning, heightfield terrain and its simulation, ground cover, and the snow slab over a voxel volume.
+2. **Ownership map.** Foliage, trees, tree wind sway, leaf colour and snow on branches belong to `bevy_flora`. Isosurface and voxel meshing belongs to `isomesh`/`bevy_isomesh`. Blood wetness belongs to `bevy_carnage`. Creature light grids belong to `bevy_light_grid`. WFC and authored world layout belong to `bevy_dark_factory`. This crate owns sky, celestial bodies, weather, atmosphere-driving, wind fields, precipitation, clouds, fog, lightning, heightfield terrain and its simulation, ground cover, and the snow slab over a voxel volume.
 3. **Hooks over dependencies.** This crate never makes a sibling depend on it. It feeds siblings through their existing public resources behind an optional feature (`flora`, `isomesh`). Hook data is published as plain resources and messages (`WindState`, `WindGust`, `SeasonState`, `SurfaceWeathering`, `Environment`) that any crate or game can read.
 4. **A needed sibling change lands in the sibling's repo**, in its own commit with tests there, and is published before this crate depends on it.
 5. **Units are SI** at every boundary (m, s, m/s, °C, lux, mm/h). Wind direction is the unit XZ vector the wind blows *toward*, which matches `FloraWind::direction`.

@@ -677,7 +677,7 @@ fn dress_camera(add: On<Add<ElementsCamera>>, mut dresser: Dresser) {
     dresser.dress(add.entity);
 }
 
-/// **Undress a camera whose [`ElementsCamera`] was removed** (this crate's #55, bevy_grimoire#193).
+/// **Undress a camera whose [`ElementsCamera`] was removed** (this crate's #55, bevy_dark_factory#193).
 ///
 /// `ElementsDressing` records which components the crate itself inserted, so the undo is the same
 /// `toggle` in reverse and a component the *game* put there is never taken away. Without this the
@@ -692,7 +692,7 @@ fn dress_camera(add: On<Add<ElementsCamera>>, mut dresser: Dresser) {
 /// on an entity that is gone is an **error**, which Bevy's default handler escalates to a panic —
 /// the editor built with this feature died with `EXIT=101` on
 /// `remove::<(AtmosphereSettings, AtmosphereEnvironmentMapLight)>: Entity despawned`, on
-/// bevy_grimoire 2026-11-03. `get_entity` is the check: if the entity is not alive there is nothing
+/// bevy_dark_factory 2026-11-03. `get_entity` is the check: if the entity is not alive there is nothing
 /// to undress, and the components went with it.
 fn undress_camera(remove: On<Remove<ElementsCamera>>, mut commands: Commands, dressed: Query<&ElementsDressing>) {
     let entity = remove.entity;
@@ -704,7 +704,7 @@ fn undress_camera(remove: On<Remove<ElementsCamera>>, mut commands: Commands, dr
     // despawning as well as when the component comes off a live camera, and each command runs at the
     // *next flush* — by which time the entity may be gone even though it resolved when queued
     // (measured: `get_entity` succeeding and `remove::<DepthPrepass>` still panicking, on
-    // bevy_grimoire 2026-11-03). Bevy's default handler escalates that to a panic that closes the
+    // bevy_dark_factory 2026-11-03). Bevy's default handler escalates that to a panic that closes the
     // window with `EXIT=101`, so nothing here may report an error: a camera that is gone has nothing
     // to undress and its components went with it.
     let mut e = commands.entity(entity);
@@ -742,7 +742,7 @@ fn undress_camera(remove: On<Remove<ElementsCamera>>, mut commands: Commands, dr
 /// **A camera on its way out is not dressed again.** `Changed<ElementsCamera>` includes an entity
 /// whose component was just removed, and the removal happens while the entity may already be
 /// despawning; `dress` then queues `insert`/`remove` at a dead entity, which Bevy's default handler
-/// turns into a panic that closes the window (`EXIT=101`, bevy_grimoire 2026-11-03).
+/// turns into a panic that closes the window (`EXIT=101`, bevy_dark_factory 2026-11-03).
 fn redress_cameras(
     changed: Query<Entity, Changed<ElementsCamera>>,
     live: Query<(), With<ElementsCamera>>,

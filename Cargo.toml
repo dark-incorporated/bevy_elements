@@ -6,7 +6,7 @@ rust-version = "1.97.1"
 description = "Living environments for Bevy: sun, moon and stars, climate-driven weather, GPU wind, volumetric clouds, rain, snow and fog, lightning, terrain with hydraulic and thermal erosion, flooding, snow cover, wetness and dust — simulated in compute shaders."
 license = "MIT OR Apache-2.0"
 authors = ["C. Thomas Brittain <cthomasbrittain@yahoo.com>"]
-repository = "https://github.com/bevy-coven/bevy_elements"
+repository = "https://github.com/dark-incorporated/bevy_elements"
 documentation = "https://docs.rs/bevy_elements"
 readme = "README.md"
 # `bevy` first: it is the term a Bevy user searches, and crates.io weights keyword position.

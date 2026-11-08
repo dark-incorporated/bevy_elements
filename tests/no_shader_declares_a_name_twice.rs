@@ -4,7 +4,7 @@
 //! This is not hypothetical. `src/noise.wesl` shipped `perlin3_periodic` **twice**, byte for byte
 //! identical, after a rebase in 2026-11-03 duplicated the block. Nothing in the build notices: WESL
 //! is composed and compiled by `naga` when a pipeline is first used, so `cargo build`, `cargo test`
-//! and CI all stayed green, and the failure surfaced only when a consumer (bevy_grimoire's editor)
+//! and CI all stayed green, and the failure surfaced only when a consumer (bevy_dark_factory's editor)
 //! opened a window with `bevy_elements` enabled and got
 //!
 //! ```text

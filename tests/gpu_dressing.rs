@@ -277,7 +277,7 @@ fn flags_flip_at_runtime() {
     finish(app);
 }
 
-/// **Removing `ElementsCamera` undoes the dressing** (bevy_grimoire#193, this crate's #55).
+/// **Removing `ElementsCamera` undoes the dressing** (bevy_dark_factory#193, this crate's #55).
 ///
 /// The editor adds `ElementsCamera` to its map camera when a project has `family/bevy_elements.ron` and
 /// removes it when the file is deleted. Until now nothing observed `Remove<ElementsCamera>`, so the
@@ -348,7 +348,7 @@ struct OwnCamera(Entity);
 /// entity is being despawned as well as when the component comes off a live camera, and
 /// `EntityCommands::remove` on a gone entity is an error the default handler escalates to a panic.
 ///
-/// Measured on bevy_grimoire 2026-11-03: an editor built `--features bevy_elements` exited `101` with
+/// Measured on bevy_dark_factory 2026-11-03: an editor built `--features bevy_elements` exited `101` with
 /// *"Entity despawned: The entity with ID 961v0 is invalid"* on
 /// `remove::<(AtmosphereSettings, AtmosphereEnvironmentMapLight)>`, which killed the window before any
 /// clip could be recorded.
